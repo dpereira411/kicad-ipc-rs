@@ -504,6 +504,9 @@ impl KiCadClientBlocking {
         fn save_document(&self) -> Result<(), KiCadError>;
         fn revert_document_raw(&self) -> Result<Any, KiCadError>;
         fn revert_document(&self) -> Result<(), KiCadError>;
+        fn revert_document_raw_for_type(&self, document_type: DocumentType) -> Result<Any, KiCadError>;
+        fn revert_document_for_type(&self, document_type: DocumentType) -> Result<(), KiCadError>;
+        fn revert_document_for(&self, document: DocumentSpecifier) -> Result<(), KiCadError>;
         fn get_board_as_string(&self) -> Result<String, KiCadError>;
         fn get_selection_as_string(&self) -> Result<SelectionStringDump, KiCadError>;
         fn get_items_by_id_raw(&self, item_ids: Vec<String>) -> Result<Vec<Any>, KiCadError>;

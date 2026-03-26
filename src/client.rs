@@ -452,6 +452,18 @@ impl KiCadClient {
         &self,
         document_type: DocumentType,
     ) -> Result<Vec<DocumentSpecifier>, KiCadError> {
+        Ok(self
+            .get_open_documents_proto(document_type)
+            .await?
+            .into_iter()
+            .filter_map(map_document_specifier)
+            .collect())
+    }
+
+    async fn get_open_documents_proto(
+        &self,
+        document_type: DocumentType,
+    ) -> Result<Vec<common_types::DocumentSpecifier>, KiCadError> {
         let command = common_commands::GetOpenDocuments {
             r#type: document_type.to_proto(),
         };
@@ -463,11 +475,7 @@ impl KiCadClient {
         let payload: common_commands::GetOpenDocumentsResponse =
             envelope::unpack_any(&response, RES_GET_OPEN_DOCUMENTS)?;
 
-        Ok(payload
-            .documents
-            .into_iter()
-            .filter_map(map_document_specifier)
-            .collect())
+        Ok(payload.documents)
     }
 
     /// Low-level variant of [`Self::get_net_classes`] that returns the raw protobuf payload.
@@ -1881,8 +1889,16 @@ impl KiCadClient {
 
     /// Low-level variant of [`Self::revert_document`] that returns the raw protobuf payload.
     pub async fn revert_document_raw(&self) -> Result<prost_types::Any, KiCadError> {
+        self.revert_document_raw_for_type(DocumentType::Pcb).await
+    }
+
+    /// Low-level variant of [`Self::revert_document_for_type`] that returns the raw protobuf payload.
+    pub async fn revert_document_raw_for_type(
+        &self,
+        document_type: DocumentType,
+    ) -> Result<prost_types::Any, KiCadError> {
         let command = common_commands::RevertDocument {
-            document: Some(self.current_board_document_proto().await?),
+            document: Some(self.current_document_proto(document_type).await?),
         };
 
         let response = self
@@ -1893,7 +1909,28 @@ impl KiCadClient {
 
     /// Reverts the active document to its last saved state.
     pub async fn revert_document(&self) -> Result<(), KiCadError> {
-        let _ = self.revert_document_raw().await?;
+        self.revert_document_for_type(DocumentType::Pcb).await
+    }
+
+    /// Reverts the active open document of the requested type to its last saved state.
+    pub async fn revert_document_for_type(
+        &self,
+        document_type: DocumentType,
+    ) -> Result<(), KiCadError> {
+        let _ = self.revert_document_raw_for_type(document_type).await?;
+        Ok(())
+    }
+
+    /// Reverts a specific document to its last saved state.
+    pub async fn revert_document_for(&self, document: DocumentSpecifier) -> Result<(), KiCadError> {
+        let command = common_commands::RevertDocument {
+            document: Some(model_document_to_proto(&document)),
+        };
+
+        let response = self
+            .send_command(envelope::pack_any(&command, CMD_REVERT_DOCUMENT))
+            .await?;
+        let _ = response_payload_as_any(response, RES_PROTOBUF_EMPTY)?;
         Ok(())
     }
 
@@ -2067,12 +2104,19 @@ impl KiCadClient {
         Ok(response)
     }
 
+    async fn current_document_proto(
+        &self,
+        document_type: DocumentType,
+    ) -> Result<common_types::DocumentSpecifier, KiCadError> {
+        let docs = self.get_open_documents_proto(document_type).await?;
+        let selected = select_single_document_proto(&docs, document_type)?;
+        Ok(selected.clone())
+    }
+
     async fn current_board_document_proto(
         &self,
     ) -> Result<common_types::DocumentSpecifier, KiCadError> {
-        let docs = self.get_open_documents(DocumentType::Pcb).await?;
-        let selected = select_single_board_document(&docs)?;
-        Ok(model_document_to_proto(selected))
+        self.current_document_proto(DocumentType::Pcb).await
     }
 
     async fn current_board_item_header(&self) -> Result<common_types::ItemHeader, KiCadError> {
@@ -2103,10 +2147,26 @@ impl KiCadClient {
 
 fn map_document_specifier(source: common_types::DocumentSpecifier) -> Option<DocumentSpecifier> {
     let document_type = DocumentType::from_proto(source.r#type)?;
-    let board_filename = match source.identifier {
+    let identifier = match source.identifier {
         Some(common_types::document_specifier::Identifier::BoardFilename(filename)) => {
-            Some(filename)
+            Some(DocumentIdentifier::BoardFilename(filename))
         }
+        Some(common_types::document_specifier::Identifier::LibId(lib_id)) => {
+            Some(DocumentIdentifier::LibId {
+                library_nickname: lib_id.library_nickname,
+                entry_name: lib_id.entry_name,
+            })
+        }
+        Some(common_types::document_specifier::Identifier::SheetPath(path)) => {
+            Some(DocumentIdentifier::SheetPath {
+                path: path.path.into_iter().map(|kiid| kiid.value).collect(),
+                human_readable_path: path.path_human_readable,
+            })
+        }
+        None => None,
+    };
+    let board_filename = match identifier.as_ref() {
+        Some(DocumentIdentifier::BoardFilename(filename)) => Some(filename.clone()),
         _ => None,
     };
 
@@ -2127,15 +2187,43 @@ fn map_document_specifier(source: common_types::DocumentSpecifier) -> Option<Doc
 
     Some(DocumentSpecifier {
         document_type,
+        identifier,
         board_filename,
         project: project_info,
     })
 }
 
 fn model_document_to_proto(document: &DocumentSpecifier) -> common_types::DocumentSpecifier {
-    let identifier = document.board_filename.as_ref().map(|filename| {
-        common_types::document_specifier::Identifier::BoardFilename(filename.clone())
-    });
+    let identifier = match document.identifier.as_ref() {
+        Some(DocumentIdentifier::BoardFilename(filename)) => Some(
+            common_types::document_specifier::Identifier::BoardFilename(filename.clone()),
+        ),
+        Some(DocumentIdentifier::LibId {
+            library_nickname,
+            entry_name,
+        }) => Some(common_types::document_specifier::Identifier::LibId(
+            common_types::LibraryIdentifier {
+                library_nickname: library_nickname.clone(),
+                entry_name: entry_name.clone(),
+            },
+        )),
+        Some(DocumentIdentifier::SheetPath {
+            path,
+            human_readable_path,
+        }) => Some(common_types::document_specifier::Identifier::SheetPath(
+            common_types::SheetPath {
+                path: path
+                    .iter()
+                    .cloned()
+                    .map(|value| common_types::Kiid { value })
+                    .collect(),
+                path_human_readable: human_readable_path.clone(),
+            },
+        )),
+        None => document.board_filename.as_ref().map(|filename| {
+            common_types::document_specifier::Identifier::BoardFilename(filename.clone())
+        }),
+    };
 
     let project = common_types::ProjectSpecifier {
         name: document.project.name.clone().unwrap_or_default(),
@@ -4169,23 +4257,114 @@ fn any_to_pretty_debug(item: &prost_types::Any) -> Result<String, KiCadError> {
     ))
 }
 
-fn select_single_board_document(
+#[cfg(test)]
+fn document_label(document: &DocumentSpecifier) -> String {
+    if let Some(filename) = document.board_filename.as_ref() {
+        return filename.clone();
+    }
+
+    if let Some(identifier) = document.identifier.as_ref() {
+        return match identifier {
+            DocumentIdentifier::BoardFilename(filename) => filename.clone(),
+            DocumentIdentifier::LibId {
+                library_nickname,
+                entry_name,
+            } => format!("{library_nickname}:{entry_name}"),
+            DocumentIdentifier::SheetPath {
+                human_readable_path,
+                ..
+            } if !human_readable_path.is_empty() => human_readable_path.clone(),
+            DocumentIdentifier::SheetPath { path, .. } => format!("/{}", path.join("/")),
+        };
+    }
+
+    if let Some(path) = document.project.path.as_ref() {
+        return path.display().to_string();
+    }
+
+    document.document_type.to_string()
+}
+
+fn document_label_proto(document: &common_types::DocumentSpecifier) -> String {
+    match document.identifier.as_ref() {
+        Some(common_types::document_specifier::Identifier::BoardFilename(filename)) => {
+            return filename.clone();
+        }
+        Some(common_types::document_specifier::Identifier::LibId(lib_id)) => {
+            return format!("{}:{}", lib_id.library_nickname, lib_id.entry_name);
+        }
+        Some(common_types::document_specifier::Identifier::SheetPath(path)) => {
+            if !path.path_human_readable.is_empty() {
+                return path.path_human_readable.clone();
+            }
+
+            let segments: Vec<String> = path.path.iter().map(|kiid| kiid.value.clone()).collect();
+            return format!("/{}", segments.join("/"));
+        }
+        None => {}
+    }
+
+    if let Some(project) = document.project.as_ref() {
+        if !project.path.is_empty() {
+            return project.path.clone();
+        }
+    }
+
+    DocumentType::from_proto(document.r#type)
+        .map(|document_type| document_type.to_string())
+        .unwrap_or_else(|| format!("document-type-{}", document.r#type))
+}
+
+#[cfg(test)]
+fn select_single_document(
     docs: &[DocumentSpecifier],
+    document_type: DocumentType,
 ) -> Result<&DocumentSpecifier, KiCadError> {
     if docs.is_empty() {
-        return Err(KiCadError::BoardNotOpen);
+        return match document_type {
+            DocumentType::Pcb => Err(KiCadError::BoardNotOpen),
+            _ => Err(KiCadError::DocumentNotOpen {
+                document_type: document_type.to_string(),
+            }),
+        };
     }
 
     if docs.len() > 1 {
-        let boards = docs
-            .iter()
-            .map(|doc| {
-                doc.board_filename
-                    .clone()
-                    .unwrap_or_else(|| "<unknown>".to_string())
-            })
-            .collect();
-        return Err(KiCadError::AmbiguousBoardSelection { boards });
+        let documents = docs.iter().map(document_label).collect();
+        return match document_type {
+            DocumentType::Pcb => Err(KiCadError::AmbiguousBoardSelection { boards: documents }),
+            _ => Err(KiCadError::AmbiguousDocumentSelection {
+                document_type: document_type.to_string(),
+                documents,
+            }),
+        };
+    }
+
+    Ok(&docs[0])
+}
+
+fn select_single_document_proto(
+    docs: &[common_types::DocumentSpecifier],
+    document_type: DocumentType,
+) -> Result<&common_types::DocumentSpecifier, KiCadError> {
+    if docs.is_empty() {
+        return match document_type {
+            DocumentType::Pcb => Err(KiCadError::BoardNotOpen),
+            _ => Err(KiCadError::DocumentNotOpen {
+                document_type: document_type.to_string(),
+            }),
+        };
+    }
+
+    if docs.len() > 1 {
+        let documents = docs.iter().map(document_label_proto).collect();
+        return match document_type {
+            DocumentType::Pcb => Err(KiCadError::AmbiguousBoardSelection { boards: documents }),
+            _ => Err(KiCadError::AmbiguousDocumentSelection {
+                document_type: document_type.to_string(),
+                documents,
+            }),
+        };
     }
 
     Ok(&docs[0])
@@ -4337,7 +4516,8 @@ mod tests {
         map_polygon_with_holes, map_run_action_status, model_document_to_proto,
         normalize_socket_uri, pad_netlist_from_footprint_items, project_document_proto,
         project_path_from_environment, resolve_current_project_path, response_payload_as_any,
-        select_single_board_document, select_single_project_path, selection_item_detail,
+        select_single_document, select_single_document_proto, select_single_project_path,
+        selection_item_detail,
         summarize_item_details, summarize_selection, text_horizontal_alignment_to_proto,
         text_spec_to_proto, KIPRJMOD_ENV, PCB_OBJECT_TYPES,
     };
@@ -4346,9 +4526,10 @@ mod tests {
         BoardLayerInfo, BoardStackup, BoardStackupLayer, BoardStackupLayerType, PcbItem, PcbViaType,
     };
     use crate::model::common::{
-        CommitAction, DocumentSpecifier, DocumentType, ProjectInfo, TextAttributesSpec,
-        TextHorizontalAlignment, TextSpec,
+        CommitAction, DocumentIdentifier, DocumentSpecifier, DocumentType, ProjectInfo,
+        TextAttributesSpec, TextHorizontalAlignment, TextSpec,
     };
+    use crate::proto::kiapi::common::types as common_types;
     use prost::Message;
     use std::path::PathBuf;
     use std::sync::Mutex;
@@ -4378,6 +4559,9 @@ mod tests {
     fn select_single_project_path_picks_unique_path() {
         let docs = vec![DocumentSpecifier {
             document_type: DocumentType::Pcb,
+            identifier: Some(DocumentIdentifier::BoardFilename(
+                "demo.kicad_pcb".to_string(),
+            )),
             board_filename: Some("demo.kicad_pcb".to_string()),
             project: ProjectInfo {
                 name: Some("demo".to_string()),
@@ -4395,6 +4579,7 @@ mod tests {
         let docs = vec![
             DocumentSpecifier {
                 document_type: DocumentType::Pcb,
+                identifier: Some(DocumentIdentifier::BoardFilename("a.kicad_pcb".to_string())),
                 board_filename: Some("a.kicad_pcb".to_string()),
                 project: ProjectInfo {
                     name: Some("a".to_string()),
@@ -4403,6 +4588,7 @@ mod tests {
             },
             DocumentSpecifier {
                 document_type: DocumentType::Pcb,
+                identifier: Some(DocumentIdentifier::BoardFilename("b.kicad_pcb".to_string())),
                 board_filename: Some("b.kicad_pcb".to_string()),
                 project: ProjectInfo {
                     name: Some("b".to_string()),
@@ -4494,10 +4680,11 @@ mod tests {
     }
 
     #[test]
-    fn select_single_board_document_errors_on_multiple_open_boards() {
+    fn select_single_document_errors_on_multiple_open_boards() {
         let docs = vec![
             DocumentSpecifier {
                 document_type: DocumentType::Pcb,
+                identifier: Some(DocumentIdentifier::BoardFilename("a.kicad_pcb".to_string())),
                 board_filename: Some("a.kicad_pcb".to_string()),
                 project: ProjectInfo {
                     name: Some("a".to_string()),
@@ -4506,6 +4693,7 @@ mod tests {
             },
             DocumentSpecifier {
                 document_type: DocumentType::Pcb,
+                identifier: Some(DocumentIdentifier::BoardFilename("b.kicad_pcb".to_string())),
                 board_filename: Some("b.kicad_pcb".to_string()),
                 project: ProjectInfo {
                     name: Some("b".to_string()),
@@ -4514,11 +4702,70 @@ mod tests {
             },
         ];
 
-        let result = select_single_board_document(&docs);
+        let result = select_single_document(&docs, DocumentType::Pcb);
         assert!(matches!(
             result,
             Err(KiCadError::AmbiguousBoardSelection { .. })
         ));
+    }
+
+    #[test]
+    fn select_single_document_errors_on_multiple_open_schematics() {
+        let docs = vec![
+            DocumentSpecifier {
+                document_type: DocumentType::Schematic,
+                identifier: Some(DocumentIdentifier::SheetPath {
+                    path: vec!["root".to_string()],
+                    human_readable_path: "/".to_string(),
+                }),
+                board_filename: None,
+                project: ProjectInfo {
+                    name: Some("demo".to_string()),
+                    path: Some(PathBuf::from("/tmp/demo")),
+                },
+            },
+            DocumentSpecifier {
+                document_type: DocumentType::Schematic,
+                identifier: Some(DocumentIdentifier::SheetPath {
+                    path: vec!["root".to_string(), "child".to_string()],
+                    human_readable_path: "/child".to_string(),
+                }),
+                board_filename: None,
+                project: ProjectInfo {
+                    name: Some("demo".to_string()),
+                    path: Some(PathBuf::from("/tmp/demo")),
+                },
+            },
+        ];
+
+        let result = select_single_document(&docs, DocumentType::Schematic);
+        assert!(matches!(
+            result,
+            Err(KiCadError::AmbiguousDocumentSelection { .. })
+        ));
+    }
+
+    #[test]
+    fn select_single_document_proto_accepts_single_schematic() {
+        let docs = vec![common_types::DocumentSpecifier {
+            r#type: DocumentType::Schematic.to_proto(),
+            project: Some(common_types::ProjectSpecifier {
+                name: "demo".to_string(),
+                path: "/tmp/demo".to_string(),
+            }),
+            identifier: Some(common_types::document_specifier::Identifier::SheetPath(
+                common_types::SheetPath {
+                    path: vec![common_types::Kiid {
+                        value: "root".to_string(),
+                    }],
+                    path_human_readable: "/".to_string(),
+                },
+            )),
+        }];
+
+        let result = select_single_document_proto(&docs, DocumentType::Schematic)
+            .expect("single schematic proto should be selected");
+        assert_eq!(result.r#type, DocumentType::Schematic.to_proto());
     }
 
     #[test]
@@ -4532,6 +4779,9 @@ mod tests {
     fn model_document_to_proto_carries_board_filename_and_project() {
         let document = DocumentSpecifier {
             document_type: DocumentType::Pcb,
+            identifier: Some(DocumentIdentifier::BoardFilename(
+                "demo.kicad_pcb".to_string(),
+            )),
             board_filename: Some("demo.kicad_pcb".to_string()),
             project: ProjectInfo {
                 name: Some("demo".to_string()),

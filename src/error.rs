@@ -116,6 +116,13 @@ pub enum KiCadError {
     #[error("no open PCB document found; open a board in KiCad first")]
     BoardNotOpen,
 
+    /// Operation requires an open document of a specific type.
+    #[error("no open `{document_type}` document found")]
+    DocumentNotOpen {
+        /// Document type that was required.
+        document_type: String,
+    },
+
     /// Multiple project paths were detected where a single path was required.
     #[error("multiple project paths found across open PCB docs: {paths:?}")]
     AmbiguousProjectPath {
@@ -128,5 +135,14 @@ pub enum KiCadError {
     AmbiguousBoardSelection {
         /// Candidate board names/paths that prevented implicit selection.
         boards: Vec<String>,
+    },
+
+    /// Multiple open documents of the same type prevent implicit selection.
+    #[error("multiple `{document_type}` documents are open; unable to choose one context: {documents:?}")]
+    AmbiguousDocumentSelection {
+        /// Document type that could not be selected implicitly.
+        document_type: String,
+        /// Candidate document labels that prevented implicit selection.
+        documents: Vec<String>,
     },
 }

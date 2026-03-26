@@ -125,20 +125,23 @@ impl DocumentType {
             common_types::DocumentType::DoctypeUnknown => None,
         }
     }
-}
 
-impl std::fmt::Display for DocumentType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let value = match self {
+    /// Stable CLI/debug name for the document type.
+    pub fn as_str(self) -> &'static str {
+        match self {
             Self::Schematic => "schematic",
             Self::Symbol => "symbol",
             Self::Pcb => "pcb",
             Self::Footprint => "footprint",
             Self::DrawingSheet => "drawing-sheet",
             Self::Project => "project",
-        };
+        }
+    }
+}
 
-        write!(f, "{value}")
+impl std::fmt::Display for DocumentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -161,6 +164,27 @@ impl FromStr for DocumentType {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+/// Document-specific identifier when KiCad distinguishes multiple open docs of the same type.
+pub enum DocumentIdentifier {
+    /// PCB document filename.
+    BoardFilename(String),
+    /// Symbol or footprint library identifier.
+    LibId {
+        /// Library nickname portion of the LIB_ID.
+        library_nickname: String,
+        /// Entry name portion of the LIB_ID.
+        entry_name: String,
+    },
+    /// Schematic sheet path.
+    SheetPath {
+        /// Canonical KIID sequence for the sheet path.
+        path: Vec<String>,
+        /// Human-readable sheet path like `/child/grandchild`.
+        human_readable_path: String,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 /// Minimal project information attached to open-document responses.
 pub struct ProjectInfo {
     /// Project display name, if provided by KiCad.
@@ -174,7 +198,11 @@ pub struct ProjectInfo {
 pub struct DocumentSpecifier {
     /// KiCad document type.
     pub document_type: DocumentType,
+    /// Document-specific identifier when relevant.
+    pub identifier: Option<DocumentIdentifier>,
     /// Board filename when relevant.
+    ///
+    /// Retained as a convenience for existing PCB-focused APIs.
     pub board_filename: Option<String>,
     /// Owning project metadata.
     pub project: ProjectInfo,

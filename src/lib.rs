@@ -90,10 +90,10 @@ pub use crate::model::board::{
     PolyLineNm, PolyLineNodeGeometryNm, PolygonWithHolesNm, RatsnestDisplayMode, Vector2Nm,
 };
 pub use crate::model::common::{
-    CommitAction, CommitSession, DocumentSpecifier, DocumentType, EditorFrameType, ItemBoundingBox,
-    ItemHitTestResult, MapMergeMode, PcbObjectTypeCode, RunActionStatus, SelectionItemDetail,
-    SelectionMutationResult, SelectionStringDump, SelectionSummary, SelectionTypeCount,
-    TextAsShapesEntry, TextAttributesSpec, TextBoxSpec, TextExtents, TextHorizontalAlignment,
-    TextObjectSpec, TextShape, TextShapeGeometry, TextSpec, TextVerticalAlignment, TitleBlockInfo,
-    VersionInfo,
+    CommitAction, CommitSession, DocumentIdentifier, DocumentSpecifier, DocumentType,
+    EditorFrameType, ItemBoundingBox, ItemHitTestResult, MapMergeMode, PcbObjectTypeCode,
+    RunActionStatus, SelectionItemDetail, SelectionMutationResult, SelectionStringDump,
+    SelectionSummary, SelectionTypeCount, TextAsShapesEntry, TextAttributesSpec, TextBoxSpec,
+    TextExtents, TextHorizontalAlignment, TextObjectSpec, TextShape, TextShapeGeometry, TextSpec,
+    TextVerticalAlignment, TitleBlockInfo, VersionInfo,
 };
