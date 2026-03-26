@@ -354,6 +354,7 @@ impl KiCadClient {
         Ok(())
     }
 
+    /// Low-level variant of [`Self::run_action`] that returns the raw protobuf payload.
     pub async fn run_action_raw(
         &self,
         action: impl Into<String>,
@@ -398,6 +399,7 @@ impl KiCadClient {
         })
     }
 
+    /// Low-level variant of [`Self::get_kicad_binary_path`] that returns the raw protobuf payload.
     pub async fn get_kicad_binary_path_raw(
         &self,
         binary_name: impl Into<String>,
@@ -421,6 +423,7 @@ impl KiCadClient {
         Ok(response.path)
     }
 
+    /// Low-level variant of [`Self::get_plugin_settings_path`] that returns the raw protobuf payload.
     pub async fn get_plugin_settings_path_raw(
         &self,
         identifier: impl Into<String>,
@@ -467,6 +470,7 @@ impl KiCadClient {
             .collect())
     }
 
+    /// Low-level variant of [`Self::get_net_classes`] that returns the raw protobuf payload.
     pub async fn get_net_classes_raw(&self) -> Result<prost_types::Any, KiCadError> {
         let command = common_commands::GetNetClasses {};
         let response = self
@@ -490,6 +494,7 @@ impl KiCadClient {
         Ok(classes)
     }
 
+    /// Low-level variant of [`Self::set_net_classes`] that returns the raw protobuf payload.
     pub async fn set_net_classes_raw(
         &self,
         net_classes: Vec<NetClassInfo>,
@@ -518,6 +523,7 @@ impl KiCadClient {
         self.get_net_classes().await
     }
 
+    /// Low-level variant of [`Self::get_text_variables`] that returns the raw protobuf payload.
     pub async fn get_text_variables_raw(&self) -> Result<prost_types::Any, KiCadError> {
         let command = common_commands::GetTextVariables {
             document: Some(project_document_proto()),
@@ -535,6 +541,7 @@ impl KiCadClient {
         Ok(response.variables.into_iter().collect())
     }
 
+    /// Low-level variant of [`Self::set_text_variables`] that returns the raw protobuf payload.
     pub async fn set_text_variables_raw(
         &self,
         variables: BTreeMap<String, String>,
@@ -563,6 +570,7 @@ impl KiCadClient {
         self.get_text_variables().await
     }
 
+    /// Low-level variant of [`Self::expand_text_variables`] that returns the raw protobuf payload.
     pub async fn expand_text_variables_raw(
         &self,
         text: Vec<String>,
@@ -588,6 +596,7 @@ impl KiCadClient {
         Ok(response.text)
     }
 
+    /// Low-level variant of [`Self::get_text_extents`] that returns the raw protobuf payload.
     pub async fn get_text_extents_raw(
         &self,
         text: TextSpec,
@@ -622,6 +631,7 @@ impl KiCadClient {
         })
     }
 
+    /// Low-level variant of [`Self::get_text_as_shapes`] that returns the raw protobuf payload.
     pub async fn get_text_as_shapes_raw(
         &self,
         text: Vec<TextObjectSpec>,
@@ -666,6 +676,7 @@ impl KiCadClient {
         Ok(!docs.is_empty())
     }
 
+    /// Low-level variant of [`Self::begin_commit`] that returns the raw protobuf payload.
     pub async fn begin_commit_raw(&self) -> Result<prost_types::Any, KiCadError> {
         let command = common_commands::BeginCommit {};
         let response = self
@@ -682,6 +693,7 @@ impl KiCadClient {
         map_commit_session(response)
     }
 
+    /// Low-level variant of [`Self::end_commit`] that returns the raw protobuf payload.
     pub async fn end_commit_raw(
         &self,
         session: CommitSession,
@@ -716,6 +728,7 @@ impl KiCadClient {
         Ok(())
     }
 
+    /// Low-level variant of [`Self::create_items`] that returns the raw protobuf payload.
     pub async fn create_items_raw(
         &self,
         items: Vec<prost_types::Any>,
@@ -758,6 +771,7 @@ impl KiCadClient {
             .collect()
     }
 
+    /// Low-level variant of [`Self::update_items`] that returns the raw protobuf payload.
     pub async fn update_items_raw(
         &self,
         items: Vec<prost_types::Any>,
@@ -797,6 +811,7 @@ impl KiCadClient {
             .collect()
     }
 
+    /// Low-level variant of [`Self::delete_items`] that returns the raw protobuf payload.
     pub async fn delete_items_raw(
         &self,
         item_ids: Vec<String>,
@@ -838,6 +853,7 @@ impl KiCadClient {
             .collect()
     }
 
+    /// Low-level variant of [`Self::parse_and_create_items_from_string`] that returns the raw protobuf payload.
     pub async fn parse_and_create_items_from_string_raw(
         &self,
         contents: impl Into<String>,
@@ -856,6 +872,7 @@ impl KiCadClient {
         response_payload_as_any(response, RES_CREATE_ITEMS_RESPONSE)
     }
 
+    /// Parses KiCad s-expression contents and creates the described items in the active board.
     pub async fn parse_and_create_items_from_string(
         &self,
         contents: impl Into<String>,
@@ -903,6 +920,7 @@ impl KiCadClient {
             .collect())
     }
 
+    /// Returns the enabled layers for the active board.
     pub async fn get_board_enabled_layers(&self) -> Result<BoardEnabledLayers, KiCadError> {
         let board = self.current_board_document_proto().await?;
         let command = board_commands::GetBoardEnabledLayers { board: Some(board) };
@@ -917,6 +935,7 @@ impl KiCadClient {
         Ok(map_board_enabled_layers_response(payload))
     }
 
+    /// Updates the enabled layers for the active board and returns the resulting layer set.
     pub async fn set_board_enabled_layers(
         &self,
         copper_layer_count: u32,
@@ -938,6 +957,7 @@ impl KiCadClient {
         Ok(map_board_enabled_layers_response(payload))
     }
 
+    /// Returns the active board layer.
     pub async fn get_active_layer(&self) -> Result<BoardLayerInfo, KiCadError> {
         let board = self.current_board_document_proto().await?;
         let command = board_commands::GetActiveLayer { board: Some(board) };
@@ -952,6 +972,7 @@ impl KiCadClient {
         Ok(layer_to_model(payload.layer))
     }
 
+    /// Sets the active board layer by KiCad layer id.
     pub async fn set_active_layer(&self, layer_id: i32) -> Result<(), KiCadError> {
         let board = self.current_board_document_proto().await?;
         let command = board_commands::SetActiveLayer {
@@ -964,6 +985,7 @@ impl KiCadClient {
         Ok(())
     }
 
+    /// Returns the layers currently visible in the board editor.
     pub async fn get_visible_layers(&self) -> Result<Vec<BoardLayerInfo>, KiCadError> {
         let board = self.current_board_document_proto().await?;
         let command = board_commands::GetVisibleLayers { board: Some(board) };
@@ -978,6 +1000,7 @@ impl KiCadClient {
         Ok(payload.layers.into_iter().map(layer_to_model).collect())
     }
 
+    /// Replaces the set of visible board layers.
     pub async fn set_visible_layers(&self, layer_ids: Vec<i32>) -> Result<(), KiCadError> {
         let board = self.current_board_document_proto().await?;
         let command = board_commands::SetVisibleLayers {
@@ -990,6 +1013,7 @@ impl KiCadClient {
         Ok(())
     }
 
+    /// Returns the requested board origin in nanometer units.
     pub async fn get_board_origin(&self, kind: BoardOriginKind) -> Result<Vector2Nm, KiCadError> {
         let board = self.current_board_document_proto().await?;
         let command = board_commands::GetBoardOrigin {
@@ -1008,6 +1032,7 @@ impl KiCadClient {
         })
     }
 
+    /// Sets a board origin in nanometer units.
     pub async fn set_board_origin(
         &self,
         kind: BoardOriginKind,
@@ -1050,6 +1075,7 @@ impl KiCadClient {
         Ok(summarize_selection(&payload.items))
     }
 
+    /// Low-level variant of [`Self::get_selection`] that returns raw protobuf items.
     pub async fn get_selection_raw(
         &self,
         type_codes: Vec<i32>,
@@ -1069,6 +1095,7 @@ impl KiCadClient {
         Ok(payload.items)
     }
 
+    /// Returns debug-oriented details for the current selection.
     pub async fn get_selection_details(
         &self,
         type_codes: Vec<i32>,
@@ -1083,6 +1110,7 @@ impl KiCadClient {
         decode_pcb_items(items)
     }
 
+    /// Low-level variant of [`Self::add_to_selection`] that returns raw protobuf items.
     pub async fn add_to_selection_raw(
         &self,
         item_ids: Vec<String>,
@@ -1112,6 +1140,7 @@ impl KiCadClient {
         }
     }
 
+    /// Adds items to the current selection and returns the resulting selection state.
     pub async fn add_to_selection(
         &self,
         item_ids: Vec<String>,
@@ -1122,6 +1151,7 @@ impl KiCadClient {
         Ok(SelectionMutationResult { items, summary })
     }
 
+    /// Low-level variant of [`Self::clear_selection`] that returns raw protobuf items.
     pub async fn clear_selection_raw(&self) -> Result<Vec<prost_types::Any>, KiCadError> {
         let command = common_commands::ClearSelection {
             header: Some(self.current_board_item_header().await?),
@@ -1144,6 +1174,7 @@ impl KiCadClient {
         }
     }
 
+    /// Clears the current selection and returns the resulting selection state.
     pub async fn clear_selection(&self) -> Result<SelectionMutationResult, KiCadError> {
         let raw_items = self.clear_selection_raw().await?;
         let summary = summarize_selection(&raw_items);
@@ -1151,6 +1182,7 @@ impl KiCadClient {
         Ok(SelectionMutationResult { items, summary })
     }
 
+    /// Low-level variant of [`Self::remove_from_selection`] that returns raw protobuf items.
     pub async fn remove_from_selection_raw(
         &self,
         item_ids: Vec<String>,
@@ -1180,6 +1212,7 @@ impl KiCadClient {
         }
     }
 
+    /// Removes items from the current selection and returns the resulting selection state.
     pub async fn remove_from_selection(
         &self,
         item_ids: Vec<String>,
@@ -1190,6 +1223,7 @@ impl KiCadClient {
         Ok(SelectionMutationResult { items, summary })
     }
 
+    /// Returns a flattened pad-to-net mapping for the active board.
     pub async fn get_pad_netlist(&self) -> Result<Vec<PadNetEntry>, KiCadError> {
         let footprint_items = self
             .get_items_raw(vec![common_types::KiCadObjectType::KotPcbFootprint as i32])
@@ -1197,11 +1231,13 @@ impl KiCadClient {
         pad_netlist_from_footprint_items(footprint_items)
     }
 
+    /// Low-level helper that returns the raw protobuf payloads for all vias on the active board.
     pub async fn get_vias_raw(&self) -> Result<Vec<prost_types::Any>, KiCadError> {
         self.get_items_raw(vec![common_types::KiCadObjectType::KotPcbVia as i32])
             .await
     }
 
+    /// Returns all vias on the active board.
     pub async fn get_vias(&self) -> Result<Vec<PcbVia>, KiCadError> {
         let items = self
             .get_items_by_type_codes(vec![common_types::KiCadObjectType::KotPcbVia as i32])
@@ -1233,6 +1269,7 @@ impl KiCadClient {
         any_to_pretty_debug(item)
     }
 
+    /// Returns raw protobuf items for the requested KiCad object type codes.
     pub async fn get_items_raw_by_type_codes(
         &self,
         type_codes: Vec<i32>,
@@ -1240,6 +1277,7 @@ impl KiCadClient {
         self.get_items_raw(type_codes).await
     }
 
+    /// Returns debug-oriented item details for the requested KiCad object type codes.
     pub async fn get_items_details_by_type_codes(
         &self,
         type_codes: Vec<i32>,
@@ -1257,6 +1295,7 @@ impl KiCadClient {
         decode_pcb_items(items)
     }
 
+    /// Returns all known PCB items grouped by type code as raw protobuf payloads.
     pub async fn get_all_pcb_items_raw(
         &self,
     ) -> Result<Vec<(PcbObjectTypeCode, Vec<prost_types::Any>)>, KiCadError> {
@@ -1269,6 +1308,7 @@ impl KiCadClient {
         Ok(rows)
     }
 
+    /// Returns debug-oriented details for all known PCB items grouped by type code.
     pub async fn get_all_pcb_items_details(
         &self,
     ) -> Result<Vec<(PcbObjectTypeCode, Vec<SelectionItemDetail>)>, KiCadError> {
@@ -1294,6 +1334,7 @@ impl KiCadClient {
         Ok(rows)
     }
 
+    /// Low-level variant of [`Self::get_items_by_net`] that returns raw protobuf items.
     pub async fn get_items_by_net_raw(
         &self,
         type_codes: Vec<i32>,
@@ -1317,6 +1358,7 @@ impl KiCadClient {
         Ok(payload.items)
     }
 
+    /// Returns PCB items matching the requested type codes and net codes.
     pub async fn get_items_by_net(
         &self,
         type_codes: Vec<i32>,
@@ -1326,6 +1368,7 @@ impl KiCadClient {
         decode_pcb_items(items)
     }
 
+    /// Low-level variant of [`Self::get_items_by_net_class`] that returns raw protobuf items.
     pub async fn get_items_by_net_class_raw(
         &self,
         type_codes: Vec<i32>,
@@ -1346,6 +1389,7 @@ impl KiCadClient {
         Ok(payload.items)
     }
 
+    /// Returns PCB items matching the requested type codes and net-class names.
     pub async fn get_items_by_net_class(
         &self,
         type_codes: Vec<i32>,
@@ -1357,6 +1401,7 @@ impl KiCadClient {
         decode_pcb_items(items)
     }
 
+    /// Low-level variant of [`Self::get_netclass_for_nets`] that returns the raw protobuf payload.
     pub async fn get_netclass_for_nets_raw(
         &self,
         nets: Vec<BoardNet>,
@@ -1378,6 +1423,7 @@ impl KiCadClient {
         response_payload_as_any(response, RES_NETCLASS_FOR_NETS_RESPONSE)
     }
 
+    /// Resolves net classes for the provided nets.
     pub async fn get_netclass_for_nets(
         &self,
         nets: Vec<BoardNet>,
@@ -1388,6 +1434,7 @@ impl KiCadClient {
         Ok(map_netclass_for_nets_response(response))
     }
 
+    /// Refills the specified zones, or all zones when `zone_ids` is empty.
     pub async fn refill_zones(&self, zone_ids: Vec<String>) -> Result<(), KiCadError> {
         let board = self.current_board_document_proto().await?;
         let command = board_commands::RefillZones {
@@ -1405,6 +1452,7 @@ impl KiCadClient {
         Ok(())
     }
 
+    /// Low-level variant of [`Self::get_pad_shape_as_polygon`] that returns raw protobuf items.
     pub async fn get_pad_shape_as_polygon_raw(
         &self,
         pad_ids: Vec<String>,
@@ -1439,6 +1487,7 @@ impl KiCadClient {
         Ok(payloads)
     }
 
+    /// Converts pad shapes into polygon geometry on a specific layer.
     pub async fn get_pad_shape_as_polygon(
         &self,
         pad_ids: Vec<String>,
@@ -1479,6 +1528,7 @@ impl KiCadClient {
         Ok(entries)
     }
 
+    /// Low-level variant of [`Self::check_padstack_presence_on_layers`] that returns raw protobuf items.
     pub async fn check_padstack_presence_on_layers_raw(
         &self,
         item_ids: Vec<String>,
@@ -1515,6 +1565,7 @@ impl KiCadClient {
         Ok(payloads)
     }
 
+    /// Checks whether the requested padstacks are present on the requested layers.
     pub async fn check_padstack_presence_on_layers(
         &self,
         item_ids: Vec<String>,
@@ -1551,6 +1602,7 @@ impl KiCadClient {
         Ok(entries)
     }
 
+    /// Low-level variant of [`Self::inject_drc_error`] that returns the raw protobuf payload.
     pub async fn inject_drc_error_raw(
         &self,
         severity: DrcSeverity,
@@ -1576,6 +1628,7 @@ impl KiCadClient {
         response_payload_as_any(response, RES_INJECT_DRC_ERROR_RESPONSE)
     }
 
+    /// Injects a DRC marker into the active board and returns its id when KiCad provides one.
     pub async fn inject_drc_error(
         &self,
         severity: DrcSeverity,
@@ -1591,6 +1644,7 @@ impl KiCadClient {
         Ok(response.marker.map(|marker| marker.value))
     }
 
+    /// Low-level variant of [`Self::get_board_stackup`] that returns the raw protobuf payload.
     pub async fn get_board_stackup_raw(&self) -> Result<prost_types::Any, KiCadError> {
         let command = board_commands::GetBoardStackup {
             board: Some(self.current_board_document_proto().await?),
@@ -1611,6 +1665,7 @@ impl KiCadClient {
         Ok(map_board_stackup(response.stackup.unwrap_or_default()))
     }
 
+    /// Low-level variant of [`Self::update_board_stackup`] that returns the raw protobuf payload.
     pub async fn update_board_stackup_raw(
         &self,
         stackup: BoardStackup,
@@ -1638,6 +1693,7 @@ impl KiCadClient {
         Ok(map_board_stackup(response.stackup.unwrap_or_default()))
     }
 
+    /// Low-level variant of [`Self::get_graphics_defaults`] that returns the raw protobuf payload.
     pub async fn get_graphics_defaults_raw(&self) -> Result<prost_types::Any, KiCadError> {
         let command = board_commands::GetGraphicsDefaults {
             board: Some(self.current_board_document_proto().await?),
@@ -1650,6 +1706,7 @@ impl KiCadClient {
         response_payload_as_any(response, RES_GRAPHICS_DEFAULTS_RESPONSE)
     }
 
+    /// Returns board graphics defaults grouped by layer class.
     pub async fn get_graphics_defaults(&self) -> Result<GraphicsDefaults, KiCadError> {
         let payload = self.get_graphics_defaults_raw().await?;
         let response: board_commands::GraphicsDefaultsResponse =
@@ -1657,6 +1714,7 @@ impl KiCadClient {
         Ok(map_graphics_defaults(response.defaults.unwrap_or_default()))
     }
 
+    /// Low-level variant of [`Self::get_board_editor_appearance_settings`] that returns the raw protobuf payload.
     pub async fn get_board_editor_appearance_settings_raw(
         &self,
     ) -> Result<prost_types::Any, KiCadError> {
@@ -1672,6 +1730,7 @@ impl KiCadClient {
         response_payload_as_any(response, RES_BOARD_EDITOR_APPEARANCE_SETTINGS)
     }
 
+    /// Returns board editor appearance settings.
     pub async fn get_board_editor_appearance_settings(
         &self,
     ) -> Result<BoardEditorAppearanceSettings, KiCadError> {
@@ -1681,6 +1740,7 @@ impl KiCadClient {
         Ok(map_board_editor_appearance_settings(response))
     }
 
+    /// Updates board editor appearance settings and returns the resulting settings.
     pub async fn set_board_editor_appearance_settings(
         &self,
         settings: BoardEditorAppearanceSettings,
@@ -1699,6 +1759,7 @@ impl KiCadClient {
         self.get_board_editor_appearance_settings().await
     }
 
+    /// Low-level variant of [`Self::interactive_move_items`] that returns the raw protobuf payload.
     pub async fn interactive_move_items_raw(
         &self,
         item_ids: Vec<String>,
@@ -1723,6 +1784,7 @@ impl KiCadClient {
         response_payload_as_any(response, RES_PROTOBUF_EMPTY)
     }
 
+    /// Starts KiCad's interactive move tool for the requested items.
     pub async fn interactive_move_items(&self, item_ids: Vec<String>) -> Result<(), KiCadError> {
         let _ = self.interactive_move_items_raw(item_ids).await?;
         Ok(())
@@ -1764,6 +1826,7 @@ impl KiCadClient {
         })
     }
 
+    /// Low-level variant of [`Self::save_document`] that returns the raw protobuf payload.
     pub async fn save_document_raw(&self) -> Result<prost_types::Any, KiCadError> {
         let command = common_commands::SaveDocument {
             document: Some(self.current_board_document_proto().await?),
@@ -1775,11 +1838,13 @@ impl KiCadClient {
         response_payload_as_any(response, RES_PROTOBUF_EMPTY)
     }
 
+    /// Saves the active document.
     pub async fn save_document(&self) -> Result<(), KiCadError> {
         let _ = self.save_document_raw().await?;
         Ok(())
     }
 
+    /// Low-level variant of [`Self::save_copy_of_document`] that returns the raw protobuf payload.
     pub async fn save_copy_of_document_raw(
         &self,
         path: impl Into<String>,
@@ -1801,6 +1866,7 @@ impl KiCadClient {
         response_payload_as_any(response, RES_PROTOBUF_EMPTY)
     }
 
+    /// Saves a copy of the active document to `path`.
     pub async fn save_copy_of_document(
         &self,
         path: impl Into<String>,
@@ -1813,6 +1879,7 @@ impl KiCadClient {
         Ok(())
     }
 
+    /// Low-level variant of [`Self::revert_document`] that returns the raw protobuf payload.
     pub async fn revert_document_raw(&self) -> Result<prost_types::Any, KiCadError> {
         let command = common_commands::RevertDocument {
             document: Some(self.current_board_document_proto().await?),
@@ -1824,6 +1891,7 @@ impl KiCadClient {
         response_payload_as_any(response, RES_PROTOBUF_EMPTY)
     }
 
+    /// Reverts the active document to its last saved state.
     pub async fn revert_document(&self) -> Result<(), KiCadError> {
         let _ = self.revert_document_raw().await?;
         Ok(())
@@ -1858,6 +1926,7 @@ impl KiCadClient {
         })
     }
 
+    /// Low-level variant of [`Self::get_items_by_id`] that returns raw protobuf items.
     pub async fn get_items_by_id_raw(
         &self,
         item_ids: Vec<String>,
@@ -1885,6 +1954,7 @@ impl KiCadClient {
         Ok(payload.items)
     }
 
+    /// Returns debug-oriented details for the requested item ids.
     pub async fn get_items_by_id_details(
         &self,
         item_ids: Vec<String>,
@@ -1899,6 +1969,7 @@ impl KiCadClient {
         decode_pcb_items(items)
     }
 
+    /// Returns item bounding boxes for the requested item ids.
     pub async fn get_item_bounding_boxes(
         &self,
         item_ids: Vec<String>,
@@ -1933,6 +2004,7 @@ impl KiCadClient {
         map_item_bounding_boxes(payload.items, payload.boxes)
     }
 
+    /// Performs a point hit-test against a single item.
     pub async fn hit_test_item(
         &self,
         item_id: String,

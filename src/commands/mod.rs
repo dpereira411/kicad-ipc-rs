@@ -1,4 +1,4 @@
-pub mod base;
-pub mod board;
-pub mod editor;
-pub mod project;
+mod base;
+mod board;
+mod editor;
+mod project;

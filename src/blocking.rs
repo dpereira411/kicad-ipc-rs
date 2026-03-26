@@ -117,43 +117,51 @@ impl Drop for BlockingCore {
 }
 
 #[derive(Clone, Debug)]
+/// Blocking wrapper around [`KiCadClient`] for synchronous callers.
 pub struct KiCadClientBlocking {
     inner: KiCadClient,
     core: Arc<BlockingCore>,
 }
 
 #[derive(Clone, Debug)]
+/// Builder for [`KiCadClientBlocking`].
 pub struct KiCadClientBlockingBuilder {
     inner: ClientBuilder,
 }
 
 impl KiCadClientBlockingBuilder {
+    /// Creates a builder with the same defaults as [`ClientBuilder::new`].
     pub fn new() -> Self {
         Self {
             inner: ClientBuilder::new(),
         }
     }
 
+    /// Sets the per-request timeout used by the underlying async client.
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.inner = self.inner.timeout(timeout);
         self
     }
 
+    /// Sets an explicit KiCad IPC socket URI/path.
     pub fn socket_path(mut self, socket_path: impl Into<String>) -> Self {
         self.inner = self.inner.socket_path(socket_path);
         self
     }
 
+    /// Sets the IPC authentication token.
     pub fn token(mut self, token: impl Into<String>) -> Self {
         self.inner = self.inner.token(token);
         self
     }
 
+    /// Sets the client name reported to KiCad.
     pub fn client_name(mut self, client_name: impl Into<String>) -> Self {
         self.inner = self.inner.client_name(client_name);
         self
     }
 
+    /// Connects to KiCad IPC and returns a blocking client wrapper.
     pub fn connect(self) -> Result<KiCadClientBlocking, KiCadError> {
         let core = BlockingCore::start()?;
         let inner_builder = self.inner;
@@ -174,6 +182,7 @@ macro_rules! blocking_methods {
         $(fn $name:ident(&self $(, $arg:ident : $arg_ty:ty)*) -> $ret:ty;)+
     ) => {
         $(
+            #[doc = "Blocking counterpart to the async method with the same name on [`KiCadClient`]."]
             pub fn $name(&self, $($arg: $arg_ty),*) -> $ret {
                 let client = self.inner.clone();
                 self.core.call(move |runtime| runtime.block_on(async move {
@@ -190,26 +199,32 @@ macro_rules! blocking_methods {
 }
 
 impl KiCadClientBlocking {
+    /// Returns a configurable builder for creating a [`KiCadClientBlocking`].
     pub fn builder() -> KiCadClientBlockingBuilder {
         KiCadClientBlockingBuilder::new()
     }
 
+    /// Connects with default builder settings.
     pub fn connect() -> Result<Self, KiCadError> {
         KiCadClientBlockingBuilder::new().connect()
     }
 
+    /// Returns the configured per-request timeout.
     pub fn timeout(&self) -> Duration {
         self.inner.timeout()
     }
 
+    /// Returns the resolved KiCad IPC socket URI/path.
     pub fn socket_uri(&self) -> &str {
         self.inner.socket_uri()
     }
 
+    /// Returns a shared reference to the underlying async client.
     pub fn inner(&self) -> &KiCadClient {
         &self.inner
     }
 
+    /// Low-level variant of [`Self::run_action`] that returns the raw protobuf payload.
     pub fn run_action_raw(&self, action: impl Into<String>) -> Result<Any, KiCadError> {
         let action = action.into();
         let client = self.inner.clone();
@@ -218,6 +233,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Runs a KiCad action by action name and returns mapped status.
     pub fn run_action(&self, action: impl Into<String>) -> Result<RunActionStatus, KiCadError> {
         let action = action.into();
         let client = self.inner.clone();
@@ -225,6 +241,7 @@ impl KiCadClientBlocking {
             .call(move |runtime| runtime.block_on(async move { client.run_action(action).await }))
     }
 
+    /// Low-level variant of [`Self::get_kicad_binary_path`] that returns the raw protobuf payload.
     pub fn get_kicad_binary_path_raw(
         &self,
         binary_name: impl Into<String>,
@@ -236,6 +253,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Resolves a KiCad binary path by binary name.
     pub fn get_kicad_binary_path(
         &self,
         binary_name: impl Into<String>,
@@ -247,6 +265,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Low-level variant of [`Self::get_plugin_settings_path`] that returns the raw protobuf payload.
     pub fn get_plugin_settings_path_raw(
         &self,
         identifier: impl Into<String>,
@@ -258,6 +277,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Resolves a plugin settings path for a plugin identifier.
     pub fn get_plugin_settings_path(
         &self,
         identifier: impl Into<String>,
@@ -269,6 +289,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Low-level variant of [`Self::end_commit`] that returns the raw protobuf payload.
     pub fn end_commit_raw(
         &self,
         session: CommitSession,
@@ -282,6 +303,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Ends a commit session with the requested action and message.
     pub fn end_commit(
         &self,
         session: CommitSession,
@@ -295,6 +317,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Low-level variant of [`Self::parse_and_create_items_from_string`] that returns the raw protobuf payload.
     pub fn parse_and_create_items_from_string_raw(
         &self,
         contents: impl Into<String>,
@@ -310,6 +333,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Parses KiCad s-expression contents and creates the described items in the active board.
     pub fn parse_and_create_items_from_string(
         &self,
         contents: impl Into<String>,
@@ -322,6 +346,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Low-level variant of [`Self::inject_drc_error`] that returns the raw protobuf payload.
     pub fn inject_drc_error_raw(
         &self,
         severity: DrcSeverity,
@@ -340,6 +365,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Injects a DRC marker into the active board and returns its id when KiCad provides one.
     pub fn inject_drc_error(
         &self,
         severity: DrcSeverity,
@@ -358,6 +384,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Low-level variant of [`Self::save_copy_of_document`] that returns the raw protobuf payload.
     pub fn save_copy_of_document_raw(
         &self,
         path: impl Into<String>,
@@ -375,6 +402,7 @@ impl KiCadClientBlocking {
         })
     }
 
+    /// Saves a copy of the active document to `path`.
     pub fn save_copy_of_document(
         &self,
         path: impl Into<String>,

@@ -327,59 +327,98 @@ pub struct TitleBlockInfo {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+/// Axis-aligned bounding box for a board item.
 pub struct ItemBoundingBox {
+    /// Item id this box belongs to.
     pub item_id: String,
+    /// Left/top X coordinate in nm.
     pub x_nm: i64,
+    /// Left/top Y coordinate in nm.
     pub y_nm: i64,
+    /// Box width in nm.
     pub width_nm: i64,
+    /// Box height in nm.
     pub height_nm: i64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// Hit-test result for a single item query.
 pub enum ItemHitTestResult {
+    /// KiCad returned an unrecognized state.
     Unknown,
+    /// The test point did not hit the item.
     NoHit,
+    /// The test point hit the item.
     Hit,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// Stable `(code, name)` pair for a KiCad PCB object type.
 pub struct PcbObjectTypeCode {
+    /// Numeric KiCad object type code.
     pub code: i32,
+    /// Symbolic name for the type code.
     pub name: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// Horizontal alignment used by text rendering APIs.
 pub enum TextHorizontalAlignment {
+    /// Alignment is not specified or not known.
     Unknown,
+    /// Left-aligned text.
     Left,
+    /// Center-aligned text.
     Center,
+    /// Right-aligned text.
     Right,
+    /// Mixed or indeterminate alignment.
     Indeterminate,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// Vertical alignment used by text rendering APIs.
 pub enum TextVerticalAlignment {
+    /// Alignment is not specified or not known.
     Unknown,
+    /// Top-aligned text.
     Top,
+    /// Center-aligned text.
     Center,
+    /// Bottom-aligned text.
     Bottom,
+    /// Mixed or indeterminate alignment.
     Indeterminate,
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// Text appearance settings accepted by KiCad text APIs.
 pub struct TextAttributesSpec {
+    /// Font family name, when explicitly selected.
     pub font_name: Option<String>,
+    /// Requested horizontal alignment.
     pub horizontal_alignment: TextHorizontalAlignment,
+    /// Requested vertical alignment.
     pub vertical_alignment: TextVerticalAlignment,
+    /// Rotation angle in degrees.
     pub angle_degrees: Option<f64>,
+    /// Relative line spacing value.
     pub line_spacing: Option<f64>,
+    /// Stroke width in nm.
     pub stroke_width_nm: Option<i64>,
+    /// Whether italic styling is enabled.
     pub italic: bool,
+    /// Whether bold styling is enabled.
     pub bold: bool,
+    /// Whether underlining is enabled.
     pub underlined: bool,
+    /// Whether the text is mirrored.
     pub mirrored: bool,
+    /// Whether multiline layout is enabled.
     pub multiline: bool,
+    /// Whether text should remain upright when rotated.
     pub keep_upright: bool,
+    /// Text size in nm.
     pub size_nm: Option<Vector2Nm>,
 }
 
@@ -404,14 +443,20 @@ impl Default for TextAttributesSpec {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// Single-line text object specification.
 pub struct TextSpec {
+    /// Text content to render.
     pub text: String,
+    /// Anchor position in nm.
     pub position_nm: Option<Vector2Nm>,
+    /// Optional text styling attributes.
     pub attributes: Option<TextAttributesSpec>,
+    /// Optional hyperlink attached to the text object.
     pub hyperlink: Option<String>,
 }
 
 impl TextSpec {
+    /// Creates a plain text spec with default positioning and styling.
     pub fn plain(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
@@ -423,72 +468,118 @@ impl TextSpec {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+/// Bounding box returned by `get_text_extents`.
 pub struct TextExtents {
+    /// Left/top X coordinate in nm.
     pub x_nm: i64,
+    /// Left/top Y coordinate in nm.
     pub y_nm: i64,
+    /// Width in nm.
     pub width_nm: i64,
+    /// Height in nm.
     pub height_nm: i64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// Text-box object specification.
 pub struct TextBoxSpec {
+    /// Text content inside the box.
     pub text: String,
+    /// Top-left corner in nm.
     pub top_left_nm: Option<Vector2Nm>,
+    /// Bottom-right corner in nm.
     pub bottom_right_nm: Option<Vector2Nm>,
+    /// Optional text styling attributes.
     pub attributes: Option<TextAttributesSpec>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// Text object input accepted by `get_text_as_shapes`.
 pub enum TextObjectSpec {
+    /// A single text item.
     Text(TextSpec),
+    /// A text box item.
     TextBox(TextBoxSpec),
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// Shape geometry produced when text is converted to drawable primitives.
 pub enum TextShapeGeometry {
+    /// Straight segment geometry.
     Segment {
+        /// Segment start point in nm.
         start_nm: Option<Vector2Nm>,
+        /// Segment end point in nm.
         end_nm: Option<Vector2Nm>,
     },
+    /// Rectangle geometry.
     Rectangle {
+        /// Top-left corner in nm.
         top_left_nm: Option<Vector2Nm>,
+        /// Bottom-right corner in nm.
         bottom_right_nm: Option<Vector2Nm>,
+        /// Corner radius in nm.
         corner_radius_nm: Option<i64>,
     },
+    /// Arc geometry.
     Arc {
+        /// Arc start point in nm.
         start_nm: Option<Vector2Nm>,
+        /// Arc midpoint in nm.
         mid_nm: Option<Vector2Nm>,
+        /// Arc end point in nm.
         end_nm: Option<Vector2Nm>,
     },
+    /// Circle geometry.
     Circle {
+        /// Circle center in nm.
         center_nm: Option<Vector2Nm>,
+        /// Point on the circle radius in nm.
         radius_point_nm: Option<Vector2Nm>,
     },
+    /// Polygon geometry.
     Polygon {
+        /// One or more polygons representing the filled outline.
         polygons: Vec<PolygonWithHolesNm>,
     },
+    /// Cubic Bezier geometry.
     Bezier {
+        /// Curve start point in nm.
         start_nm: Option<Vector2Nm>,
+        /// First control point in nm.
         control1_nm: Option<Vector2Nm>,
+        /// Second control point in nm.
         control2_nm: Option<Vector2Nm>,
+        /// Curve end point in nm.
         end_nm: Option<Vector2Nm>,
     },
+    /// Unrecognized geometry returned by KiCad.
     Unknown,
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// Drawable shape emitted for a text object.
 pub struct TextShape {
+    /// Geometric primitive for the shape.
     pub geometry: TextShapeGeometry,
+    /// Stroke width in nm.
     pub stroke_width_nm: Option<i64>,
+    /// KiCad stroke style code.
     pub stroke_style: Option<i32>,
+    /// Stroke color.
     pub stroke_color: Option<ColorRgba>,
+    /// KiCad fill type code.
     pub fill_type: Option<i32>,
+    /// Fill color.
     pub fill_color: Option<ColorRgba>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// Result row returned by `get_text_as_shapes`.
 pub struct TextAsShapesEntry {
+    /// Original source object, when echoed back by KiCad.
     pub source: Option<TextObjectSpec>,
+    /// Shapes generated from the source object.
     pub shapes: Vec<TextShape>,
 }
 

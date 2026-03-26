@@ -56,24 +56,14 @@
 
 /// High-level async client and request/response convenience methods.
 pub mod client;
-/// Low-level command payload builders.
-///
-/// This module is public for advanced integrations and debugging, but most users
-/// should prefer [`crate::client::KiCadClient`] methods.
-pub mod commands;
-/// Envelope helpers for command/response packing and unpacking.
-///
-/// This is primarily an advanced/internal surface.
-pub mod envelope;
+mod commands;
+mod envelope;
 /// Error types returned by this crate.
 pub mod error;
 mod kicad_api_version;
 /// Stable data models used by typed client APIs.
 pub mod model;
-/// IPC transport implementation details.
-///
-/// Most applications should not need to use this module directly.
-pub mod transport;
+mod transport;
 
 #[cfg(feature = "blocking")]
 /// Blocking wrapper over the async client.
